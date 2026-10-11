@@ -24,6 +24,12 @@ import kotlin.math.min
  */
 class AlertEditorActivity : AppCompatActivity() {
 
+  companion object {
+    const val EXTRA_TYPE = "type"
+  }
+
+  private var type = AlertType.FOLLOW
+  private lateinit var titleView: TextView
   private val ui = Handler(Looper.getMainLooper())
   private lateinit var col: LinearLayout
   private lateinit var video: VideoView
@@ -40,10 +46,30 @@ class AlertEditorActivity : AppCompatActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     col = Ui.page(this)
-    col.addView(Ui.eyebrow(this, "Alertas"))
-    col.addView(Ui.title(this, "Crear alerta con un video"))
+    type = intent.getStringExtra(EXTRA_TYPE)?.let { n -> AlertType.values().firstOrNull { it.name == n } } ?: AlertType.FOLLOW
+    col.addView(Ui.eyebrow(this, "Editar alerta"))
+    titleView = Ui.title(this, "")
+    col.addView(titleView)
+
+    // Elegir para qué alerta es
+    val types = android.widget.RadioGroup(this)
+    AlertType.values().forEachIndexed { i, t ->
+      types.addView(android.widget.RadioButton(this).apply {
+        id = 900 + i
+        text = "${t.emoji}  ${t.label}"
+        setTextColor(Ui.TEXT)
+      })
+    }
+    types.check(900 + type.ordinal)
+    types.setOnCheckedChangeListener { _, id -> type = AlertType.values()[id - 900]; updateTitle() }
+    val typeCard = Ui.card(this)
+    typeCard.addView(Ui.label(this, "¿Para qué alerta es?", 15f, Ui.TEXT, true))
+    typeCard.addView(types)
+    col.addView(typeCard)
+    updateTitle()
+
     col.addView(Ui.label(this,
-      "1) En TikTok toca Compartir → «Guardar video».\n2) Elígelo aquí, recorta el momento y crea el video y/o el sonido.\n3) Súbelos en Starvios → Alertas OBS (para seguidor, sub, Starvies…).", 14f, Ui.MUTED))
+      "1) En TikTok toca Compartir → «Guardar video».\n2) Elígelo aquí y recorta el momento.\n3) Crea el video y/o el sonido. Puedes usar partes distintas del mismo video.", 14f, Ui.MUTED))
     col.addView(Ui.button(this, "🎞  Elegir video de la galería") { pick.launch("video/*") })
 
     val editor = Ui.card(this)
@@ -77,6 +103,10 @@ class AlertEditorActivity : AppCompatActivity() {
     // también acepta videos compartidos hacia la app
     @Suppress("DEPRECATION")
     (intent.getParcelableExtra<Uri>(android.content.Intent.EXTRA_STREAM))?.let { load(it) }
+  }
+
+  private fun updateTitle() {
+    titleView.text = "${type.emoji} ${type.label}"
   }
 
   private fun startSec() = durationSec * startBar.progress / 1000.0
@@ -118,20 +148,22 @@ class AlertEditorActivity : AppCompatActivity() {
   private fun make(video: Boolean) {
     val src = source ?: run { toast("Primero elige un video"); return }
     val s = startSec(); val e = s + lenSec()
-    val n = made.size + 1
-    val out = File(MediaTools.workDir(this, "alertas"), if (video) "alerta_video_$n.mp4" else "alerta_sonido_$n.wav")
+    val t = type
+    val out = if (video) t.videoFile(this) else t.soundFile(this)
+    val tmp = File(out.parentFile, "tmp_" + out.name)
     toast("Creando…")
     thread {
       try {
-        if (video) Highlights.cut(src, out, s, e) else MediaTools.extractWav(src, out, s, e)
-        val mb = out.length() / 1_048_576.0
+        if (video) Highlights.cut(src, tmp, s, e) else MediaTools.extractWav(src, tmp, s, e)
+        val mb = tmp.length() / 1_048_576.0
         val limit = if (video) 25.0 else 12.0
         ui.post {
           if (mb > limit) {
             toast(String.format(Locale.US, "Pesa %.1f MB y Starvios acepta hasta %.0f MB. Hazlo más corto.", mb, limit))
-            out.delete()
+            tmp.delete()
           } else {
-            made += out
+            out.delete(); tmp.renameTo(out)
+            made.remove(out); made += out
             MediaTools.saveToPhone(this, out, if (video) "video/mp4" else "audio/wav", downloads = true)
             addResult(out, mb)
           }
@@ -144,13 +176,17 @@ class AlertEditorActivity : AppCompatActivity() {
 
   private fun addResult(f: File, mb: Double) {
     val card = Ui.card(this)
-    card.addView(Ui.label(this, "✅ ${f.name}", 15f, Ui.TEXT, true))
+    card.addView(Ui.label(this, "✅ ${type.emoji} ${type.label}: ${if (f.extension == "wav") "sonido" else "video"} listo", 15f, Ui.TEXT, true))
     card.addView(Ui.label(this, String.format(Locale.US, "%.1f MB · copia guardada en Descargas/StarviosLive", mb), 12f, Ui.MUTED))
-    card.addView(Ui.button(this, "⭐  Subir a Starvios (Alertas OBS)") {
+    val t = type
+    card.addView(Ui.button(this, "⭐  Subir a Starvios (${t.label})") {
       StarviosWebActivity.open(
-        this, "https://starvios.com/studio", made.toList(),
-        "🔔 Ve a Alertas OBS, elige la alerta (seguidor, sub, Starvies…) y toca «Subir archivo» o «Subir audio»: te muestro tus archivos para adjuntar."
+        this, "https://starvios.com/studio", listOf(t.videoFile(this), t.soundFile(this)).filter { it.exists() },
+        "${t.emoji} ${t.label}: entra a Alertas OBS, elige «${t.label}» y toca «Subir archivo» / «Subir audio». Te muestro los archivos de esta alerta."
       )
+    })
+    card.addView(Ui.button(this, "🔔  Ver todas mis alertas", primary = false) {
+      startActivity(android.content.Intent(this, AlertKitActivity::class.java)); finish()
     })
     results.addView(card, 0)
   }

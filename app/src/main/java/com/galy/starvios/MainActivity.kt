@@ -48,8 +48,8 @@ class MainActivity : AppCompatActivity() {
     })
     col.addView(camCard)
 
-    col.addView(Ui.button(this, "🔔  Crear alerta con un video (TikTok)", primary = false) {
-      startActivity(Intent(this, AlertEditorActivity::class.java))
+    col.addView(Ui.button(this, "🔔  Mis alertas (videos de TikTok)", primary = false) {
+      startActivity(Intent(this, AlertKitActivity::class.java))
     })
     col.addView(Ui.button(this, "🎬  Mis clips", primary = false) {
       startActivity(Intent(this, ClipsActivity::class.java))
