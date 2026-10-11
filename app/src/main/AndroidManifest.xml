@@ -16,6 +16,11 @@
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
 
+  <queries>
+    <package android:name="com.zhiliaoapp.musically" />
+    <package android:name="com.ss.android.ugc.trill" />
+  </queries>
+
   <application
     android:allowBackup="false"
     android:icon="@drawable/ic_launcher"
@@ -40,6 +45,30 @@
       android:name=".CameraActivity"
       android:screenOrientation="portrait"
       android:keepScreenOn="true" />
+
+    <activity android:name=".ClipsActivity" android:screenOrientation="portrait" android:launchMode="singleTask" />
+    <activity android:name=".StarviosWebActivity" android:screenOrientation="portrait" />
+    <activity
+      android:name=".AlertEditorActivity"
+      android:exported="true"
+      android:label="Crear alerta Starvios"
+      android:screenOrientation="portrait">
+      <intent-filter>
+        <action android:name="android.intent.action.SEND" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <data android:mimeType="video/*" />
+      </intent-filter>
+    </activity>
+
+    <provider
+      android:name="androidx.core.content.FileProvider"
+      android:authorities="${applicationId}.files"
+      android:exported="false"
+      android:grantUriPermissions="true">
+      <meta-data
+        android:name="android.support.FILE_PROVIDER_PATHS"
+        android:resource="@xml/file_paths" />
+    </provider>
 
     <service
       android:name=".StreamService"

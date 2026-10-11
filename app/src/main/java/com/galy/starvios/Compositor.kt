@@ -40,6 +40,12 @@ class Compositor(
   private val clipPath = Path()
   private val full = Rect(0, 0, 1920, 1080)
 
+  // Colores según el tema elegido en Configuración
+  private val merc get() = state.theme == 1
+  private val accent1 get() = if (merc) 0xFFE0141E.toInt() else Ui.PINK
+  private val accent2 get() = if (merc) 0xFF1A1A1A.toInt() else Ui.GOLD
+  private val accentText get() = if (merc) 0xFFFF4D4D.toInt() else Ui.PINK
+
   fun start() {
     running = true
     handler.post(frame)
@@ -111,10 +117,18 @@ class Compositor(
     c.drawBitmap(bmp, src, r, bmpPaint)
     c.restore()
 
-    stroke.strokeWidth = 7f
-    stroke.shader = LinearGradient(r.left, r.top, r.right, r.bottom, Ui.PINK, Ui.GOLD, Shader.TileMode.CLAMP)
+    stroke.strokeWidth = if (merc) 10f else 7f
+    stroke.shader = LinearGradient(r.left, r.top, r.right, r.bottom, accent1, accent2, Shader.TileMode.CLAMP)
     c.drawRoundRect(r, radius, radius, stroke)
     stroke.shader = null
+    if (merc) {
+      // franjas diagonales rojas en la esquina, estilo "mercenario"
+      fill.color = accent1
+      for (k in 0 until 3) {
+        val x = r.right - 70f + k * 22f
+        c.drawRect(x, r.top - 12f, x + 10f, r.top + 4f, fill)
+      }
+    }
   }
 
   // ---------- Banner inferior ----------
@@ -132,11 +146,12 @@ class Compositor(
     val top = 1080f - 28f - h
     val r = RectF(left, top, left + w, top + h)
 
-    fill.shader = LinearGradient(r.left, r.top, r.right, r.top, 0xEE0B0B10.toInt(), 0xEE1E1424.toInt(), Shader.TileMode.CLAMP)
+    fill.shader = if (merc) LinearGradient(r.left, r.top, r.right, r.top, 0xF0000000.toInt(), 0xF0300406.toInt(), Shader.TileMode.CLAMP)
+    else LinearGradient(r.left, r.top, r.right, r.top, 0xEE0B0B10.toInt(), 0xEE1E1424.toInt(), Shader.TileMode.CLAMP)
     c.drawRoundRect(r, h / 2, h / 2, fill)
     fill.shader = null
     stroke.strokeWidth = 4f
-    stroke.shader = LinearGradient(r.left, r.top, r.right, r.bottom, Ui.PINK, Ui.GOLD, Shader.TileMode.CLAMP)
+    stroke.shader = LinearGradient(r.left, r.top, r.right, r.bottom, accent1, if (merc) 0xFF7A0A0F.toInt() else accent2, Shader.TileMode.CLAMP)
     c.drawRoundRect(r, h / 2, h / 2, stroke)
     stroke.shader = null
 
@@ -149,7 +164,7 @@ class Compositor(
     text.color = Color.WHITE
     text.textSize = 44f
     c.drawText(title, left + 96f, top + 50f, text)
-    text.color = Ui.PINK
+    text.color = accentText
     text.textSize = 30f
     c.drawText(sub, left + 96f, top + 88f, text)
     text.color = Color.WHITE
@@ -157,11 +172,12 @@ class Compositor(
 
   // ---------- Pantalla "Ya vuelvo" ----------
   private fun drawBrb(c: Canvas) {
-    fill.shader = LinearGradient(0f, 0f, 1920f, 1080f, 0xFF140A1A.toInt(), 0xFF2A0F24.toInt(), Shader.TileMode.CLAMP)
+    fill.shader = if (merc) LinearGradient(0f, 0f, 1920f, 1080f, 0xFF050505.toInt(), 0xFF3A0508.toInt(), Shader.TileMode.CLAMP)
+    else LinearGradient(0f, 0f, 1920f, 1080f, 0xFF140A1A.toInt(), 0xFF2A0F24.toInt(), Shader.TileMode.CLAMP)
     c.drawRect(0f, 0f, 1920f, 1080f, fill)
     fill.shader = null
     // estrellas decorativas
-    fill.color = 0x33FF5D9E
+    fill.color = if (merc) 0x40E0141E else 0x33FF5D9E
     val t = System.currentTimeMillis() / 40
     for (i in 0 until 28) {
       val x = ((i * 397 + t * (1 + i % 3)) % 1920).toFloat()
@@ -169,17 +185,22 @@ class Compositor(
       c.drawCircle(x, y, (3 + i % 5).toFloat(), fill)
     }
     text.textAlign = Paint.Align.CENTER
-    text.color = Ui.PINK
+    text.color = accentText
     text.textSize = 40f
     text.letterSpacing = 0.3f
-    c.drawText("STARVIOS", 960f, 400f, text)
+    c.drawText(if (merc) "MODO MERCENARIO" else "STARVIOS", 960f, 400f, text)
     text.letterSpacing = 0f
     text.color = Color.WHITE
     text.textSize = 130f
-    c.drawText(state.brbText, 960f, 560f, text)
-    text.color = Ui.GOLD
+    c.drawText(if (merc) "Vuelvo en un toque" else state.brbText, 960f, 560f, text)
+    if (merc) {
+      text.textSize = 44f
+      text.color = 0xFFBBBBBB.toInt()
+      c.drawText("no cambies de canal... te estoy viendo 👀", 960f, 630f, text)
+    }
+    text.color = if (merc) accentText else Ui.GOLD
     text.textSize = 42f
-    c.drawText(state.bannerTitle, 960f, 650f, text)
+    c.drawText(state.bannerTitle, 960f, if (merc) 720f else 650f, text)
     text.textAlign = Paint.Align.LEFT
     text.color = Color.WHITE
   }
@@ -202,4 +223,5 @@ class OverlayState {
   @Volatile var camSize = 1
   @Volatile var bannerTitle = ""
   @Volatile var bannerSubtitle = ""
+  @Volatile var theme = 0
 }

@@ -49,6 +49,16 @@ class Prefs(context: Context) {
     get() = sp.getBoolean("front", true)
     set(v) = sp.edit().putBoolean("front", v).apply()
 
+  /** 0 = Starvios (rosa/dorado), 1 = Mercenario (rojo/negro) */
+  var theme: Int
+    get() = sp.getInt("theme", 0)
+    set(v) = sp.edit().putInt("theme", v).apply()
+
+  /** Grabar el directo para sacar clips al final */
+  var makeClips: Boolean
+    get() = sp.getBoolean("clips", true)
+    set(v) = sp.edit().putBoolean("clips", v).apply()
+
   val fullUrl: String
     get() {
       val s = server.trimEnd('/')

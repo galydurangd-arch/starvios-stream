@@ -50,7 +50,25 @@ class SettingsActivity : AppCompatActivity() {
     q.addView(group)
     col.addView(q)
 
+    val look = Ui.card(this)
+    look.addView(Ui.label(this, "Estilo del directo", 15f, Ui.TEXT, true))
+    val themeGroup = RadioGroup(this)
+    val t0 = RadioButton(this).apply { id = 500; text = "⭐ Starvios (rosa y dorado)"; setTextColor(Ui.TEXT) }
+    val t1 = RadioButton(this).apply { id = 501; text = "🗡 Mercenario (rojo y negro)"; setTextColor(Ui.TEXT) }
+    themeGroup.addView(t0); themeGroup.addView(t1)
+    themeGroup.check(if (prefs.theme == 1) 501 else 500)
+    look.addView(themeGroup)
+    val clips = android.widget.CheckBox(this).apply {
+      text = "🎬 Grabar el directo para crear clips al final"
+      setTextColor(Ui.TEXT)
+      isChecked = prefs.makeClips
+    }
+    look.addView(clips)
+    col.addView(look)
+
     col.addView(Ui.button(this, "Guardar") {
+      prefs.theme = if (themeGroup.checkedRadioButtonId == 501) 1 else 0
+      prefs.makeClips = clips.isChecked
       prefs.server = server.text.toString().ifBlank { Prefs.DEFAULT_SERVER }
       prefs.streamKey = key.text.toString()
       prefs.alertsUrl = alertsUrl.text.toString()

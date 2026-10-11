@@ -29,6 +29,7 @@ class FloatingControls(
     fun nextCorner()
     fun nextSize()
     fun reloadAlerts()
+    fun markClip()
     fun stop()
   }
 
@@ -66,6 +67,7 @@ class FloatingControls(
       setPadding(ctx.dp(4), 0, ctx.dp(4), ctx.dp(6))
     }
     panel.addView(statusLine)
+    panel.addView(item("✂️ Marcar jugada (clip)") { actions.markClip() })
     panel.addView(item("📷 Cámara: SÍ") { v -> v.text = if (actions.toggleCam()) "📷 Cámara: SÍ" else "📷 Cámara: NO" })
     panel.addView(item("↘ Mover cámara") { actions.nextCorner() })
     panel.addView(item("⤢ Tamaño cámara") { actions.nextSize() })

@@ -25,7 +25,9 @@ import com.pedro.encoder.input.gl.render.filters.`object`.SurfaceFilterRender
 import com.pedro.encoder.input.sources.audio.MicrophoneSource
 import com.pedro.encoder.input.sources.audio.MixAudioSource
 import com.pedro.encoder.input.sources.video.ScreenSource
+import com.pedro.library.base.recording.RecordController
 import com.pedro.library.generic.GenericStream
+import java.io.File
 
 /**
  * Servicio que transmite: pantalla (juego) + audio del juego y micrófono + capa de overlays → Starvios.
@@ -55,6 +57,9 @@ class StreamService : Service(), ConnectChecker, FloatingControls.Actions {
   private val state = OverlayState()
   @Volatile private var statusText = "Conectando…"
   private var micMuted = false
+  private var recording: File? = null
+  private var recordStartMs = 0L
+  private val clipMarks = mutableListOf<Double>()
   private var width = 1920
   private var height = 1080
 
@@ -117,6 +122,7 @@ class StreamService : Service(), ConnectChecker, FloatingControls.Actions {
     state.bannerSubtitle = prefs.bannerSubtitle
     state.camCorner = prefs.camCorner
     state.camSize = prefs.camSize
+    state.theme = prefs.theme
 
     val mpm = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
     val mp = mpm.getMediaProjection(code, data) ?: throw IllegalStateException("sin permiso de captura")
@@ -150,11 +156,31 @@ class StreamService : Service(), ConnectChecker, FloatingControls.Actions {
     s.getStreamClient().setReTries(30)
     s.startStream(prefs.fullUrl)
     startCompositorWhenReady(overlay, 0)
+    startRecording(s)
 
     controls = FloatingControls(this, this).also { runCatching { it.show() } }
     wakeLock = (getSystemService(POWER_SERVICE) as PowerManager)
       .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "starvios:live").apply { acquire(6 * 60 * 60 * 1000L) }
     main.post(statusTick)
+  }
+
+  /** Graba el directo (con cámara y alertas) para sacar los clips al final. */
+  private fun startRecording(s: GenericStream) {
+    if (!prefs.makeClips) return
+    val dir = MediaTools.workDir(this, "grabaciones")
+    dir.listFiles()?.forEach { it.delete() } // restos de directos anteriores
+    if (dir.usableSpace < 1_500_000_000L) {
+      toast("Poco espacio libre: este directo no generará clips")
+      return
+    }
+    val f = File(dir, "directo_${System.currentTimeMillis()}.mp4")
+    runCatching {
+      s.startRecord(f.path, null) { status ->
+        if (status == RecordController.Status.RECORDING && recordStartMs == 0L) recordStartMs = System.currentTimeMillis()
+      }
+      recording = f
+      recordStartMs = System.currentTimeMillis()
+    }
   }
 
   /** El Surface del filtro aparece cuando arranca OpenGL; esperamos a que exista. */
@@ -232,6 +258,12 @@ class StreamService : Service(), ConnectChecker, FloatingControls.Actions {
 
   override fun reloadAlerts() { alerts?.reload() }
 
+  override fun markClip() {
+    if (recording == null || recordStartMs == 0L) { toast("La grabación para clips está desactivada"); return }
+    clipMarks += (System.currentTimeMillis() - recordStartMs) / 1000.0
+    toast("✂️ Jugada marcada (${clipMarks.size})")
+  }
+
   override fun stop() { shutdown() }
 
   // ---------- Cierre ----------
@@ -241,7 +273,10 @@ class StreamService : Service(), ConnectChecker, FloatingControls.Actions {
     compositor?.stop(); compositor = null
     alerts?.stop(); alerts = null
     cam?.stop(); cam = null
+    val rec = recording
+    recording = null
     stream?.let {
+      runCatching { if (it.isRecording) it.stopRecord() }
       runCatching { if (it.isStreaming) it.stopStream() }
       runCatching { it.release() }
     }
@@ -250,6 +285,10 @@ class StreamService : Service(), ConnectChecker, FloatingControls.Actions {
     projection = null
     runCatching { if (wakeLock?.isHeld == true) wakeLock?.release() }
     isRunning = false
+    if (rec != null && rec.exists() && rec.length() > 500_000) {
+      runCatching { ClipsActivity.open(this, rec, clipMarks.toList()) }
+    }
+    clipMarks.clear()
     ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
     stopSelf()
   }
