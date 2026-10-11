@@ -38,6 +38,9 @@ class MainActivity : AppCompatActivity() {
     streamCard.addView(Ui.button(this, "Preparar directo") {
       startActivity(Intent(this, StreamSetupActivity::class.java))
     })
+    streamCard.addView(Ui.button(this, "👁  Modo prueba (ver cómo se verá)", primary = false) {
+      startActivity(Intent(this, PreviewActivity::class.java))
+    })
     col.addView(streamCard)
 
     val camCard = Ui.card(this)

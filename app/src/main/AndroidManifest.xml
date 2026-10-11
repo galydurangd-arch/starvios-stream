@@ -47,6 +47,7 @@
       android:keepScreenOn="true" />
 
     <activity android:name=".ClipsActivity" android:screenOrientation="portrait" android:launchMode="singleTask" />
+    <activity android:name=".PreviewActivity" android:screenOrientation="portrait" />
     <activity android:name=".AlertKitActivity" android:screenOrientation="portrait" />
     <activity android:name=".StarviosWebActivity" android:screenOrientation="portrait" />
     <activity
